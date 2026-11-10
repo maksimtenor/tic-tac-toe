@@ -1,13 +1,18 @@
 package main
 
 import (
+	"bohemas/internal/config"
 	"bohemas/internal/transport/rest"
+	"fmt"
 	"log"
 	"net/http"
 )
 
 func main() {
-	mux := rest.NewRouter()
+	cfg := config.Configure()
 
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	mux := rest.NewRouter()
+	fmt.Printf("Starting server on port %s\n", cfg.Port)
+	fmt.Printf("Текст перед запуском... %s\n", cfg.Test)
+	log.Fatal(http.ListenAndServe(":"+cfg.Port, mux))
 }

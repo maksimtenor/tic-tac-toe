@@ -1,0 +1,31 @@
+version: '3.8'
+
+services:
+  # Название вашего сервиса с приложением
+  web:
+    build:
+      context: ..                         # Поднимаемся в корень, чтобы Docker видел папки cmd и internal
+      dockerfile: deployments/Dockerfile  # Явно говорим: сам файл Dockerfile лежит в папке deployments
+    # Синтаксис: "ВНЕШНИЙ_ПОРТ:ВНУТРЕННИЙ_ПОРТ"
+    ports:
+      - "${EXTERNAL_PORT}:${APP_PORT}"  # Пробрасывает порт 8080 наружу
+    env_file:
+      - ../.env # Автоматически подтягивает переменные из вашего .env файла
+    depends_on:
+      - db # Запускает приложение только ПОСЛЕ старта базы данных
+  # Название сервиса базы данных
+  db:
+    image: postgres:15-alpine # Готовый образ из Docker Hub
+    restart: always
+    environment:
+      POSTGRES_USER: ${DB_USER:-postgres} # Берет из .env, иначе ставит дефолт
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-postgres}
+      POSTGRES_DB: ${DB_NAME:-mydb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data # Сохраняет данные БД на жестком диске
+
+# Объявление томов для сохранения данных
+volumes:
+  pgdata:
