@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"sync"
 )
 
 type SessionRequest struct {
@@ -15,15 +14,6 @@ type SessionRequest struct {
 type MoveRequest struct {
 	SessionID string `json:"sessionId"`
 	Position  string `json:"position"`
-}
-
-type GameSession struct {
-	Name     string
-	UserSide string
-	BotSide  string
-	Builder  *app.BoardBuilder
-	GameOver bool
-	Mu       sync.Mutex
 }
 
 type StartRequest struct {

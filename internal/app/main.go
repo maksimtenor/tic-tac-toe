@@ -1,57 +1,14 @@
 package app
 
 import (
+	"bohemas/internal/app/helpers"
 	"crypto/rand"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
-	"sync"
 )
-
-type BoardBuilder struct {
-	Unused        int
-	Rows          []string
-	Cols          []int
-	Sides         []string
-	Board         map[string]int
-	BoardTemplate map[string]map[int]string
-}
-
-var Player1, Player2, unused = 1, 2, 0
-
-func NewBoardBuilder() *BoardBuilder {
-	return &BoardBuilder{
-		unused,
-		[]string{"a", "b", "c"},
-		[]int{1, 2, 3},
-		[]string{"X", "O"},
-		map[string]int{
-			"a1": unused, "a2": unused, "a3": unused,
-			"b1": unused, "b2": unused, "b3": unused,
-			"c1": unused, "c2": unused, "c3": unused,
-		},
-		map[string]map[int]string{
-			"a": {1: "_", 2: "_", 3: "_"},
-			"b": {1: "_", 2: "_", 3: "_"},
-			"c": {1: "_", 2: "_", 3: "_"},
-		},
-	}
-}
-
-type GameSession struct {
-	Name     string
-	UserSide string
-	BotSide  string
-	Builder  *BoardBuilder
-	GameOver bool
-	Mu       sync.Mutex
-}
-
-var sessions = make(map[string]*GameSession)
-var sessionsMu sync.Mutex
 
 type MoveResult struct {
 	BotMove string
@@ -60,7 +17,7 @@ type MoveResult struct {
 }
 
 type ResetResult struct {
-	Builder  *BoardBuilder
+	Builder  *helpers.BoardBuilder
 	GameOver bool
 }
 
@@ -69,20 +26,10 @@ type StartResult struct {
 	Game      *GameSession
 }
 
-func newSessionID() (string, error) {
-	b := make([]byte, 16)
-
-	if _, err := rand.Read(b); err != nil {
-		return "", err
-	}
-
-	return hex.EncodeToString(b), nil
-}
-
 func PlayStart(login, side string) (StartResult, error) {
 	if strings.TrimSpace(login) == "" ||
 		(side != "X" && side != "O") {
-		err := errors.New("Invalid login")
+		err := errors.New("invalid login")
 		return StartResult{}, err
 	}
 
@@ -180,7 +127,7 @@ func PlayMove(sessionId string, position string) (MoveResult, error) {
 		game.BotSide,
 	}
 
-	if win, winner := IsWinner(game.Builder, players); win {
+	if win, winner := helpers.IsWinner(game.Builder, players); win {
 		move.Winner = winner
 	}
 
@@ -208,7 +155,7 @@ func PlayMove(sessionId string, position string) (MoveResult, error) {
 		rowNumber2, _ := strconv.Atoi(chars2[1])
 		game.Builder.BoardTemplate[chars2[0]][rowNumber2] = game.BotSide
 
-		if win, winner := IsWinner(game.Builder, players); win {
+		if win, winner := helpers.IsWinner(game.Builder, players); win {
 			move.Winner = winner
 		}
 	}
@@ -229,66 +176,10 @@ func PlayMove(sessionId string, position string) (MoveResult, error) {
 	return move, nil
 }
 
-// isWinner Проверка победителя
-func IsWinner(builder *BoardBuilder, players []string) (bool, string) {
-	wg := sync.WaitGroup{}
-	ch := make(chan string, len(players))
-
-	wg.Add(len(players))
-	for _, player := range players {
-		go Check(player, builder, ch, &wg)
-	}
-	wg.Wait()
-	close(ch)
-
-	playerWon, ok := <-ch
-	if ok {
-		return true, playerWon
-	}
-
-	return false, ""
-}
-
-func Check(player string, builder *BoardBuilder, ch chan string, wg *sync.WaitGroup) {
-	defer wg.Done()
-	board := builder.BoardTemplate
-
-	// Проверка 3 горизонталей
-	if board["a"][1] == player && board["a"][2] == player && board["a"][3] == player {
-		ch <- player
-	} else if board["b"][1] == player && board["b"][2] == player && board["b"][3] == player {
-		ch <- player
-	} else if board["c"][1] == player && board["c"][2] == player && board["c"][3] == player {
-		ch <- player
-	} else if board["a"][1] == player && board["b"][1] == player && board["c"][1] == player {
-		ch <- player
-	} else if board["a"][2] == player && board["b"][2] == player && board["c"][2] == player {
-		ch <- player
-	} else if board["a"][3] == player && board["b"][3] == player && board["c"][3] == player {
-		ch <- player
-	} else if board["a"][1] == player && board["b"][2] == player && board["c"][3] == player {
-		ch <- player
-	} else if board["a"][3] == player && board["b"][2] == player && board["c"][1] == player {
-		ch <- player
-	}
-}
-
-func BotMove(builder *BoardBuilder, botSide, userSide string) string {
-	// Все возможные выигрышные комбинации
-	wins := [][]string{
-		{"a1", "a2", "a3"},
-		{"b1", "b2", "b3"},
-		{"c1", "c2", "c3"},
-		{"a1", "b1", "c1"},
-		{"a2", "b2", "c2"},
-		{"a3", "b3", "c3"},
-		{"a1", "b2", "c3"},
-		{"a3", "b2", "c1"},
-	}
-
+func BotMove(builder *helpers.BoardBuilder, botSide, userSide string) string {
 	// Проверяем, можно ли завершить линию за один ход
 	findWinningMove := func(side string) string {
-		for _, line := range wins {
+		for _, line := range helpers.Wins {
 			count := 0
 			empty := ""
 
