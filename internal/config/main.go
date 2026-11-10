@@ -7,12 +7,12 @@ import (
 )
 
 type Config struct {
-	Port string `json:"port"`
-	Test string `json:"test"`
+	Port      string `json:"port"`
+	Test      string `json:"test"`
+	RedisAddr string `json:"redis_addr"`
 }
 
 func Configure() *Config {
-	// Пытаемся загрузить файл, но НЕ падаем, если его нет
 	_ = godotenv.Load()
 
 	port := os.Getenv("APP_PORT")
@@ -20,8 +20,19 @@ func Configure() *Config {
 		port = "8080"
 	}
 
+	redisHost := os.Getenv("REDIS_HOST")
+	if redisHost == "" {
+		redisHost = "localhost" // Дефолт для локального запуска без докера
+	}
+
+	redisPort := os.Getenv("REDIS_PORT")
+	if redisPort == "" {
+		redisPort = "6379"
+	}
+
 	return &Config{
-		Port: port,
-		Test: os.Getenv("TEST"),
+		Port:      port,
+		Test:      os.Getenv("TEST"),
+		RedisAddr: redisHost + ":" + redisPort,
 	}
 }

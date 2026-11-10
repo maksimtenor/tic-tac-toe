@@ -26,6 +26,19 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data # Сохраняет данные БД на жестком диске
 
+  redis:
+    image: redis:7-alpine # Легковесный и стабильный образ Redis 7
+    restart: always
+    ports:
+      - "6379:6379" # Пробрасываем стандартный порт Redis
+    # Запускаем Redis с флагом авторизации.
+    # Конструкция автоматически создаст пользователя с вашим логином и паролем
+    volumes:
+      - redisdata:/data # Сохраняем данные Redis на диске, чтобы они не стирались при перезапуске
+      - ./users.acl:/etc/redis/users.acl:ro
+    command: redis-server --aclfile /etc/redis/users.acl
+
 # Объявление томов для сохранения данных
 volumes:
   pgdata:
+  redisdata:
