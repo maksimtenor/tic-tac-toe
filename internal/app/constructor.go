@@ -1,5 +1,20 @@
 package app
 
+import (
+	"crypto/rand"
+	"encoding/hex"
+	"sync"
+)
+
+type GameSession struct {
+	Name     string
+	UserSide string
+	BotSide  string
+	Builder  *BoardBuilder
+	GameOver bool
+	Mu       sync.Mutex
+}
+
 type BoardBuilder struct {
 	Unused        int
 	Rows          []string
@@ -13,6 +28,9 @@ var (
 	Player2 = 2
 	Player1 = 1
 )
+
+var sessions = make(map[string]*GameSession)
+var sessionsMu sync.Mutex
 
 func NewBoardBuilder() *BoardBuilder {
 	return &BoardBuilder{
@@ -31,4 +49,14 @@ func NewBoardBuilder() *BoardBuilder {
 			"c": {1: "_", 2: "_", 3: "_"},
 		},
 	}
+}
+
+func newSessionID() (string, error) {
+	b := make([]byte, 16)
+
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(b), nil
 }
