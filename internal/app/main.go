@@ -1,13 +1,13 @@
 package app
 
 import (
-	"bohemas/internal/app/helpers"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type MoveResult struct {
@@ -17,13 +17,25 @@ type MoveResult struct {
 }
 
 type ResetResult struct {
-	Builder  *helpers.BoardBuilder
+	Builder  *BoardBuilder
 	GameOver bool
 }
 
 type StartResult struct {
 	SessionId string
 	Game      *GameSession
+}
+
+// Все возможные выигрышные комбинации
+var Wins = [][]string{
+	{"a1", "a2", "a3"},
+	{"b1", "b2", "b3"},
+	{"c1", "c2", "c3"},
+	{"a1", "b1", "c1"},
+	{"a2", "b2", "c2"},
+	{"a3", "b3", "c3"},
+	{"a1", "b2", "c3"},
+	{"a3", "b2", "c1"},
 }
 
 func PlayStart(login, side string) (StartResult, error) {
@@ -127,7 +139,7 @@ func PlayMove(sessionId string, position string) (MoveResult, error) {
 		game.BotSide,
 	}
 
-	if win, winner := helpers.IsWinner(game.Builder, players); win {
+	if win, winner := IsWinner(game.Builder, players); win {
 		move.Winner = winner
 	}
 
@@ -155,7 +167,7 @@ func PlayMove(sessionId string, position string) (MoveResult, error) {
 		rowNumber2, _ := strconv.Atoi(chars2[1])
 		game.Builder.BoardTemplate[chars2[0]][rowNumber2] = game.BotSide
 
-		if win, winner := helpers.IsWinner(game.Builder, players); win {
+		if win, winner := IsWinner(game.Builder, players); win {
 			move.Winner = winner
 		}
 	}
@@ -176,10 +188,10 @@ func PlayMove(sessionId string, position string) (MoveResult, error) {
 	return move, nil
 }
 
-func BotMove(builder *helpers.BoardBuilder, botSide, userSide string) string {
+func BotMove(builder *BoardBuilder, botSide, userSide string) string {
 	// Проверяем, можно ли завершить линию за один ход
 	findWinningMove := func(side string) string {
-		for _, line := range helpers.Wins {
+		for _, line := range Wins {
 			count := 0
 			empty := ""
 
@@ -234,4 +246,47 @@ func BotMove(builder *helpers.BoardBuilder, botSide, userSide string) string {
 	}
 
 	return freeCells[n.Int64()]
+}
+
+func IsWinner(builder *BoardBuilder, players []string) (bool, string) {
+	wg := sync.WaitGroup{}
+	ch := make(chan string, len(players))
+
+	wg.Add(len(players))
+	for _, player := range players {
+		go CheckWinner(player, builder, ch, &wg)
+	}
+	wg.Wait()
+	close(ch)
+
+	playerWon, ok := <-ch
+	if ok {
+		return true, playerWon
+	}
+
+	return false, ""
+}
+
+func CheckWinner(player string, builder *BoardBuilder, ch chan string, wg *sync.WaitGroup) {
+	defer wg.Done()
+	board := builder.BoardTemplate
+
+	// Проверка 3 горизонталей
+	if board["a"][1] == player && board["a"][2] == player && board["a"][3] == player {
+		ch <- player
+	} else if board["b"][1] == player && board["b"][2] == player && board["b"][3] == player {
+		ch <- player
+	} else if board["c"][1] == player && board["c"][2] == player && board["c"][3] == player {
+		ch <- player
+	} else if board["a"][1] == player && board["b"][1] == player && board["c"][1] == player {
+		ch <- player
+	} else if board["a"][2] == player && board["b"][2] == player && board["c"][2] == player {
+		ch <- player
+	} else if board["a"][3] == player && board["b"][3] == player && board["c"][3] == player {
+		ch <- player
+	} else if board["a"][1] == player && board["b"][2] == player && board["c"][3] == player {
+		ch <- player
+	} else if board["a"][3] == player && board["b"][2] == player && board["c"][1] == player {
+		ch <- player
+	}
 }

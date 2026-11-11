@@ -1,14 +1,21 @@
 package app
 
-import "bohemas/internal/app/helpers"
+type BoardBuilder struct {
+	Unused        int
+	Rows          []string
+	Cols          []int
+	Sides         []string
+	Board         map[string]int
+	BoardTemplate map[string]map[int]string
+}
 
 var (
 	Player2 = 2
 	Player1 = 1
 )
 
-func NewBoardBuilder() *helpers.BoardBuilder {
-	return &helpers.BoardBuilder{
+func NewBoardBuilder() *BoardBuilder {
+	return &BoardBuilder{
 		0,
 		[]string{"a", "b", "c"},
 		[]int{1, 2, 3},

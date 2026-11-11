@@ -1,7 +1,6 @@
 package app
 
 import (
-	"bohemas/internal/app/helpers"
 	"crypto/rand"
 	"encoding/hex"
 	"sync"
@@ -14,7 +13,7 @@ type GameSession struct {
 	Name     string
 	UserSide string
 	BotSide  string
-	Builder  *helpers.BoardBuilder
+	Builder  *BoardBuilder
 	GameOver bool
 	Mu       sync.Mutex
 }
