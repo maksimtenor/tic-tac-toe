@@ -36,7 +36,7 @@ services:
     volumes:
       - redisdata:/data # Сохраняем данные Redis на диске, чтобы они не стирались при перезапуске
       - ./users.acl:/etc/redis/users.acl:ro
-    command: redis-server --aclfile /etc/redis/users.acl
+    command: redis-server --aclfile /etc/redis/users.acl --appendonly yes
 
 # Объявление томов для сохранения данных
 volumes:

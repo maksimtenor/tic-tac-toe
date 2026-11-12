@@ -4,255 +4,169 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Крестики-Нолики vs BOT</title>
-    <!-- Подключаем Vue.js 3 через CDN -->
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-        }
-        body {
-            background: #1a1a1a;
-            color: #ffffff;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
-        #app {
-            text-align: center;
-            background: #2a2a2a;
-            padding: 30px;
-            border-radius: 15px;
-            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
-            max-width: 400px;
-            width: 100%;
-        }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background: #1a1a1a; color: #fff; display: flex; justify-content: center; align-items: center; min-height: 100vh; padding: 20px; }
+        #app { text-align: center; background: #2a2a2a; padding: 30px; border-radius: 15px; box-shadow: 0 10px 25px rgba(0,0,0,.5); max-width: 400px; width: 100%; }
         h1 { margin-bottom: 20px; color: #42b883; }
-        .status-box {
-            margin-bottom: 20px;
-            font-size: 1.1rem;
-            min-height: 27px;
-        }
-        /* Сетка игрового поля */
-        .board {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            grid-gap: 10px;
-            margin-bottom: 25px;
-        }
-        /* Ячейка поля */
-        .cell {
-            background: #3a3a3a;
-            aspect-ratio: 1; /* Делает ячейки строго квадратными */
-            border-radius: 8px;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-size: 2.5rem;
-            font-weight: bold;
-            cursor: pointer;
-            transition: background 0.2s, transform 0.1s;
-            user-select: none;
-        }
-        .cell:hover {
-            background: #4a4a4a;
-        }
-        .cell:active {
-            transform: scale(0.95);
-        }
-        /* Стилизация символов */
+        .status-box { margin-bottom: 20px; font-size: 1.1rem; min-height: 27px; }
+        .board { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; margin-bottom: 25px; }
+        .cell { background: #3a3a3a; aspect-ratio: 1; border-radius: 8px; display: flex; justify-content: center; align-items: center; font-size: 2.5rem; font-weight: bold; cursor: pointer; transition: background .2s, transform .1s; user-select: none; }
+        .cell:hover { background: #4a4a4a; }
+        .cell:active { transform: scale(.95); }
         .cell.X { color: #ff5e5e; }
         .cell.O { color: #5eb5ff; }
-        .cell.disabled {
-            pointer-events: none;
-            background: #333333;
-        }
-        /* Кнопка сброса */
-        .btn {
-            background: #42b883;
-            color: #1a1a1a;
-            border: none;
-            padding: 10px 20px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 5px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
+        .cell.disabled { pointer-events: none; background: #333; }
+        .btn { background: #42b883; color: #1a1a1a; border: none; padding: 10px 20px; font-size: 1rem; font-weight: bold; border-radius: 5px; cursor: pointer; transition: background .2s; }
         .btn:hover { background: #359a6c; }
         .btn:disabled { background: #555; color: #888; cursor: not-allowed; }
-        .start-screen {
-            display: flex;
-            flex-direction: column;
-            gap: 20px;
-        }
-
-        .start-screen input {
-            padding: 12px;
-            border: none;
-            border-radius: 8px;
-            background: #3a3a3a;
-            color: white;
-            font-size: 16px;
-        }
-
-        .side-choice {
-            display: flex;
-            gap: 15px;
-        }
-
-        .side-choice button {
-            flex: 1;
-            padding: 20px;
-            background: #3a3a3a;
-            border: 2px solid transparent;
-            border-radius: 8px;
-            color: white;
-            font-size: 30px;
-            cursor: pointer;
-        }
-
-        .side-choice button.selected {
-            border-color: #42b883;
-            background: #355044;
-        }
-
-        .player-info {
-            margin-bottom: 15px;
-        }
+        .start-screen { display: flex; flex-direction: column; gap: 20px; }
+        .start-screen input { padding: 12px; border: none; border-radius: 8px; background: #3a3a3a; color: white; font-size: 16px; }
+        .side-choice { display: flex; gap: 15px; }
+        .side-choice button { flex: 1; padding: 20px; background: #3a3a3a; border: 2px solid transparent; border-radius: 8px; color: white; font-size: 30px; cursor: pointer; }
+        .side-choice button.selected { border-color: #42b883; background: #355044; }
+        .player-info { margin-bottom: 15px; }
+        .error { color: #ff5e5e; }
     </style>
 </head>
 <body>
-
 <div id="app">
     <h1>Крестики-Нолики</h1>
-    <div v-if="!gameStarted" class="start-screen">
-        <input
-                v-model="playerName"
-                placeholder="Введите ваше имя"
-                maxlength="30"
-        >
 
+    <p v-if="restoring" class="status-box">Восстанавливаем игру...</p>
+
+    <div v-else-if="!gameStarted" class="start-screen">
+        <input v-model="playerName" placeholder="Введите ваше имя" maxlength="30">
         <p>Выберите сторону:</p>
-
         <div class="side-choice">
-            <button
-                    :class="{ selected: userSide === 'X' }"
-                    @click="userSide = 'X'"
-            >X</button>
-
-            <button
-                    :class="{ selected: userSide === 'O' }"
-                    @click="userSide = 'O'"
-            >O</button>
+            <button :class="{ selected: userSide === 'X' }" @click="userSide = 'X'">X</button>
+            <button :class="{ selected: userSide === 'O' }" @click="userSide = 'O'">O</button>
         </div>
-
-        <p v-if="userSide">
-            Бот играет за {{ userSide === 'X' ? 'O' : 'X' }}
-        </p>
-        <p v-if="startError" style="color: #ff5e5e">
-            {{ startError }}
-        </p>
-        <button
-                class="btn"
-                @click="startGame"
-                :disabled="!playerName.trim() || !userSide || loading"
-        >
-            Начать игру
-        </button>
+        <p v-if="userSide">Бот играет за {{ userSide === 'X' ? 'O' : 'X' }}</p>
+        <p v-if="startError" class="error">{{ startError }}</p>
+        <button class="btn" @click="startGame" :disabled="!playerName.trim() || !userSide || loading">Начать игру</button>
     </div>
+
     <div v-else>
-        <p class="player-info">
-            {{ playerName }} — {{ userSide }}
-        </p>
-    <div class="status-box">
-        <p v-if="winner">🎉 Победитель: <strong>{{ winner }}</strong></p>
-        <p v-else-if="isDraw">🤝 Ничья!</p>
-        <p v-else>{{ statusMessage }}</p>
-    </div>
-
-    <!-- Игровое поле -->
-    <div class="board">
-        <!-- Рендерим ячейки. В :class прокидываем X или O для цвета,
-             а также блокируем нажатия, если ячейка занята или игра окончена -->
-        <div
-                v-for="(value, cellId) in board"
-                :key="cellId"
-                :class="['cell', value, { disabled: value !== '_' || winner || isDraw || loading }]"
-                @click="makeMove(cellId)"
-        >
-            {{ value !== '_' ? value : '' }}
+        <p class="player-info">{{ playerName }} — {{ userSide }}</p>
+        <div class="status-box">
+            <p v-if="winner">🎉 Победитель: <strong>{{ winner }}</strong></p>
+            <p v-else-if="isDraw">🤝 Ничья!</p>
+            <p v-else>{{ statusMessage }}</p>
         </div>
-    </div>
-
-    <button class="btn" @click="resetGame" :disabled="loading">Новая игра</button>
+        <div class="board">
+            <div v-for="(value, cellId) in board"
+                 :key="cellId"
+                 :class="['cell', value, { disabled: value !== '_' || gameOver || loading }]"
+                 @click="makeMove(cellId)">
+                {{ value !== '_' ? value : '' }}
+            </div>
+        </div>
+        <button class="btn" @click="resetGame" :disabled="loading">Новая игра</button>
     </div>
 </div>
 
 <script>
     const { createApp } = Vue;
+    const emptyBoard = () => ({
+        a1: '_', a2: '_', a3: '_',
+        b1: '_', b2: '_', b3: '_',
+        c1: '_', c2: '_', c3: '_'
+    });
+    const winningLines = [
+        ['a1', 'a2', 'a3'], ['b1', 'b2', 'b3'], ['c1', 'c2', 'c3'],
+        ['a1', 'b1', 'c1'], ['a2', 'b2', 'c2'], ['a3', 'b3', 'c3'],
+        ['a1', 'b2', 'c3'], ['a3', 'b2', 'c1']
+    ];
 
     createApp({
         data() {
             return {
-                // Структура поля в точности как у вас на бэкенде
-                board: {
-                    a1: '_', a2: '_', a3: '_',
-                    b1: '_', b2: '_', b3: '_',
-                    c1: '_', c2: '_', c3: '_',
-                },
+                board: emptyBoard(),
                 startError: '',
                 playerName: '',
                 gameStarted: false,
-                userSide: null,      // Сторона игрока
-                botSide: null,       // Сторона бота
-                winner: null,       // Имя победителя ('X', 'O' или nil)
-                isDraw: false,      // Флаг ничьей
-                loading: false,     // Блокировка интерфейса пока бэкенд «думает»
-                sessionId: null,
+                userSide: null,
+                botSide: null,
+                winner: null,
+                isDraw: false,
+                gameOver: false,
+                loading: false,
+                restoring: true,
                 statusMessage: 'Ваш ход!'
-            }
+            };
+        },
+        async mounted() {
+            await this.restoreGame();
         },
         methods: {
+            // Сервер отдаёт поле в виде Builder.BoardTemplate: {a:{1:'X',...}, b:{...}, c:{...}}
+            flattenBoard(template) {
+                const board = emptyBoard();
+                for (const row of ['a', 'b', 'c']) {
+                    for (let col = 1; col <= 3; col++) {
+                        board[`${row}${col}`] = template?.[row]?.[col] ?? '_';
+                    }
+                }
+                return board;
+            },
+            findWinner(board) {
+                for (const line of winningLines) {
+                    const first = board[line[0]];
+                    if (first !== '_' && first && line.every(cell => board[cell] === first)) {
+                        return first;
+                    }
+                }
+                return null;
+            },
+            async restoreGame() {
+                this.restoring = true;
+                try {
+                    const response = await fetch('/api/session', { credentials: 'same-origin' });
+                    if (response.status === 401 || response.status === 404) return;
+                    if (!response.ok) throw new Error(`Ошибка восстановления: ${response.status}`);
+
+                    const data = await response.json();
+                    this.playerName = data.name ?? data.Name ?? '';
+                    this.userSide = data.userSide;
+                    this.botSide = data.botSide;
+                    // Поддерживаем оба варианта ответа: Builder или board.
+                    const template = data.Builder?.BoardTemplate ?? data.builder?.boardTemplate ?? data.board;
+                    this.board = this.flattenBoard(template);
+                    this.gameOver = Boolean(data.gameOver ?? data.GameOver);
+                    this.winner = this.findWinner(this.board);
+                    this.isDraw = this.gameOver && !this.winner;
+                    this.statusMessage = 'Ваш ход!';
+                    this.gameStarted = true;
+                } catch (error) {
+                    console.error('Не удалось восстановить игру:', error);
+                    this.startError = 'Не удалось восстановить игру. Попробуйте обновить страницу.';
+                } finally {
+                    this.restoring = false;
+                }
+            },
             async startGame() {
                 if (!this.playerName.trim() || !this.userSide || this.loading) return;
                 this.startError = '';
                 this.loading = true;
-
                 try {
-                    const response = await fetch('http://localhost:3000/api/start', {
+                    const response = await fetch('/api/start', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            login: this.playerName.trim(),
-                            side: this.userSide
-                        })
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ login: this.playerName.trim(), side: this.userSide })
                     });
-
-                    if (!response.ok) {
-                        throw new Error('Ошибка запуска игры');
-                    }
-
+                    if (!response.ok) throw new Error(`Ошибка запуска: ${response.status}`);
                     const data = await response.json();
-
-                    this.sessionId = data.sessionId;
                     this.userSide = data.userSide;
                     this.botSide = data.botSide;
-
-                    for (const key in this.board) {
-                        this.board[key] = '_';
-                    }
-
+                    this.board = emptyBoard();
                     this.winner = null;
                     this.isDraw = false;
+                    this.gameOver = false;
                     this.statusMessage = 'Ваш ход!';
                     this.gameStarted = true;
-
                 } catch (error) {
                     console.error(error);
                     this.startError = 'Не удалось начать игру';
@@ -260,99 +174,55 @@
                     this.loading = false;
                 }
             },
-            // 1. Метод обработки клика по ячейке
             async makeMove(cellId) {
-                if (!this.sessionId || !this.gameStarted ||
-                    this.board[cellId] !== '_' ||
-                    this.winner || this.isDraw || this.loading) return;
-
-                // Визуально ставим ход игрока на фронте сразу
+                if (!this.gameStarted || this.board[cellId] !== '_' || this.gameOver || this.loading) return;
                 this.statusMessage = 'Бот думает...';
                 this.loading = true;
-
                 try {
-                    // --- МЕСТО ДЛЯ ПОДКЛЮЧЕНИЯ ВАШЕГО GO БЭКЕНДА ---
-                    // Здесь вы будете отправлять запрос на ваш сервер:
-                    const response = await fetch('http://localhost:3000/api/move', {
+                    const response = await fetch('/api/move', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            sessionId: this.sessionId,
-                            position: cellId
-                        })
+                        credentials: 'same-origin',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ position: cellId })
                     });
-                    if (!response.ok) {
-                        throw new Error(`Ошибка сервера: ${response.status}`);
-                    }
+                    if (!response.ok) throw new Error(`Ошибка сервера: ${response.status}`);
                     const data = await response.json();
                     this.board[cellId] = this.userSide;
-                    if (data.botMove) {
-                        this.board[data.botMove] = this.botSide;
-                    }
-
+                    if (data.botMove) this.board[data.botMove] = this.botSide;
                     this.winner = data.winner || null;
-                    this.isDraw = data.isDraw;
+                    this.isDraw = Boolean(data.isDraw);
+                    this.gameOver = Boolean(this.winner || this.isDraw);
                     this.statusMessage = 'Ваш ход!';
-
                 } catch (error) {
-                    console.error("Ошибка связи с сервером", error);
+                    console.error(error);
                     this.statusMessage = 'Ошибка бэкенда!';
                 } finally {
                     this.loading = false;
                 }
             },
-
-            // Временная фронтенд-проверка победы (чисто для демо, пока нет бэкенда)
-            checkWin(player) {
-                const b = this.board;
-                const wins = [
-                    ['a1', 'a2', 'a3'], ['b1', 'b2', 'b3'], ['c1', 'c2', 'c3'], // Горизонтали
-                    ['a1', 'b1', 'c1'], ['a2', 'b2', 'c2'], ['a3', 'b3', 'c3'], // Вертикали
-                    ['a1', 'b2', 'c3'], ['a3', 'b2', 'c1']                      // Диагонали
-                ];
-                return wins.some(combination => combination.every(cell => b[cell] === player));
-            },
-
-            // Сброс состояния игры
             async resetGame() {
-                if (!this.sessionId || this.loading) return;
-
+                if (this.loading) return;
                 this.loading = true;
                 try {
-                    const response = await fetch('http://localhost:3000/api/reset', {
+                    const response = await fetch('/api/reset', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            sessionId: this.sessionId
-                        })
+                        credentials: 'same-origin'
                     });
-
-                    if (!response.ok) {
-                        throw new Error('Ошибка сброса');
-                    }
+                    if (!response.ok) throw new Error(`Ошибка сброса: ${response.status}`);
+                    this.board = emptyBoard();
+                    this.winner = null;
+                    this.isDraw = false;
+                    this.gameOver = false;
+                    this.statusMessage = 'Ваш ход!';
                 } catch (error) {
                     console.error(error);
                     this.statusMessage = 'Не удалось сбросить игру';
-                    return;
-
                 } finally {
                     this.loading = false;
                 }
-
-                for (let key in this.board) {
-                    this.board[key] = '_';
-                }
-                this.winner = null;
-                this.isDraw = false;
-                this.statusMessage = 'Ваш ход!';
             }
         }
     }).mount('#app');
 </script>
-
 </body>
 </html>

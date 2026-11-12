@@ -12,7 +12,6 @@ type GameSession struct {
 	BotSide  string
 	Builder  *BoardBuilder
 	GameOver bool
-	Mu       sync.Mutex
 }
 
 type BoardBuilder struct {
@@ -51,7 +50,7 @@ func NewBoardBuilder() *BoardBuilder {
 	}
 }
 
-func newSessionID() (string, error) {
+func NewSessionID() (string, error) {
 	b := make([]byte, 16)
 
 	if _, err := rand.Read(b); err != nil {
