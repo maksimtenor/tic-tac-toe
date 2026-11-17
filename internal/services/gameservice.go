@@ -13,13 +13,27 @@ import (
 	"github.com/redis/go-redis/v9"
 )
 
-type GameService struct {
-	db *redis.Client
+type SessionStore interface {
+	Get(
+		ctx context.Context,
+		key string,
+	) *redis.StringCmd
+
+	Set(
+		ctx context.Context,
+		key string,
+		value interface{},
+		expiration time.Duration,
+	) *redis.StatusCmd
 }
 
-func NewGameService(redisDB *redis.Client) *GameService {
+type GameService struct {
+	db SessionStore
+}
+
+func NewGameService(db SessionStore) *GameService {
 	return &GameService{
-		db: redisDB,
+		db: db,
 	}
 }
 
@@ -35,10 +49,8 @@ func (gs *GameService) GetSession(ctx context.Context, sessionID string) (*app.G
 		// Другая ошибка: Redis недоступен и т.д.
 		return nil, err
 	}
-
-	if session == "" {
-		// Ключ существует, но значение — пустая строка
-		return nil, errors.New("empty session")
+	if !json.Valid([]byte(session)) {
+		return nil, errors.New("not valid session")
 	}
 
 	var gameSession app.GameSession
@@ -47,8 +59,6 @@ func (gs *GameService) GetSession(ctx context.Context, sessionID string) (*app.G
 	if err != nil {
 		return nil, err
 	}
-
-	fmt.Printf("gameSession: %v\n", gameSession.Name)
 
 	return &gameSession, nil
 }
