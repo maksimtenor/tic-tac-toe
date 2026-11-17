@@ -40,6 +40,113 @@ func (f *FakeStore) Set(
 	return redis.NewStatusResult("OK", nil)
 }
 
+func TestPlayMove(t *testing.T) {
+	tests := []struct {
+		name          string
+		ctx           context.Context
+		Name          string
+		UserSide      string
+		BotSide       string
+		sessionID     string
+		fakeData      map[string]string
+		position      string
+		wantTextError string
+		wantErr       bool
+	}{
+		{
+			name:      "Ход в свободную клетку",
+			ctx:       context.Background(),
+			Name:      "Test",
+			UserSide:  "X",
+			BotSide:   "O",
+			sessionID: "12345",
+			position:  "a3",
+			fakeData: map[string]string{
+				"game-session:12345": "{\"Name\":\"Test\",\"UserSide\":\"O\",\"BotSide\":\"X\",\"Builder\":{\"Unused\":0,\"Rows\":[\"a\",\"b\",\"c\"],\"Cols\":[1,2,3],\"Sides\":[\"X\",\"O\"],\"Board\":{\"a1\":2,\"a2\":0,\"a3\":0,\"b1\":0,\"b2\":1,\"b3\":0,\"c1\":0,\"c2\":0,\"c3\":0},\"BoardTemplate\":{\"a\":{\"1\":\"X\",\"2\":\"_\",\"3\":\"_\"},\"b\":{\"1\":\"_\",\"2\":\"O\",\"3\":\"_\"},\"c\":{\"1\":\"_\",\"2\":\"_\",\"3\":\"_\"}}},\"GameOver\":false}",
+			},
+			wantErr: false,
+		},
+		{
+			name:      "Ход в занятую клетку",
+			ctx:       context.Background(),
+			Name:      "Test",
+			UserSide:  "X",
+			BotSide:   "O",
+			sessionID: "12345",
+			position:  "b2",
+			fakeData: map[string]string{
+				"game-session:12345": "{\"Name\":\"Test\",\"UserSide\":\"O\",\"BotSide\":\"X\",\"Builder\":{\"Unused\":0,\"Rows\":[\"a\",\"b\",\"c\"],\"Cols\":[1,2,3],\"Sides\":[\"X\",\"O\"],\"Board\":{\"a1\":2,\"a2\":0,\"a3\":0,\"b1\":0,\"b2\":1,\"b3\":0,\"c1\":0,\"c2\":0,\"c3\":0},\"BoardTemplate\":{\"a\":{\"1\":\"X\",\"2\":\"_\",\"3\":\"_\"},\"b\":{\"1\":\"_\",\"2\":\"O\",\"3\":\"_\"},\"c\":{\"1\":\"_\",\"2\":\"_\",\"3\":\"_\"}}},\"GameOver\":false}",
+			},
+			wantErr:       true,
+			wantTextError: "cell already occupied",
+		},
+		{
+			name:      "Несуществующая клетка z9",
+			ctx:       context.Background(),
+			Name:      "Test",
+			UserSide:  "X",
+			BotSide:   "O",
+			sessionID: "12345",
+			position:  "z9",
+			fakeData: map[string]string{
+				"game-session:12345": "{\"Name\":\"Test\",\"UserSide\":\"O\",\"BotSide\":\"X\",\"Builder\":{\"Unused\":0,\"Rows\":[\"a\",\"b\",\"c\"],\"Cols\":[1,2,3],\"Sides\":[\"X\",\"O\"],\"Board\":{\"a1\":2,\"a2\":0,\"a3\":0,\"b1\":0,\"b2\":1,\"b3\":0,\"c1\":0,\"c2\":0,\"c3\":0},\"BoardTemplate\":{\"a\":{\"1\":\"X\",\"2\":\"_\",\"3\":\"_\"},\"b\":{\"1\":\"_\",\"2\":\"O\",\"3\":\"_\"},\"c\":{\"1\":\"_\",\"2\":\"_\",\"3\":\"_\"}}},\"GameOver\":false}",
+			},
+			wantErr:       true,
+			wantTextError: "invalid cell",
+		},
+		{
+			name:      "Игра уже завершена",
+			ctx:       context.Background(),
+			Name:      "Test",
+			UserSide:  "X",
+			BotSide:   "O",
+			sessionID: "12345",
+			position:  "b1",
+			fakeData: map[string]string{
+				"game-session:12345": "{\"Name\":\"Test\",\"UserSide\":\"O\",\"BotSide\":\"X\",\"Builder\":{\"Unused\":0,\"Rows\":[\"a\",\"b\",\"c\"],\"Cols\":[1,2,3],\"Sides\":[\"X\",\"O\"],\"Board\":{\"a1\":2,\"a2\":1,\"a3\":1,\"b1\":0,\"b2\":1,\"b3\":1,\"c1\":2,\"c2\":2,\"c3\":2},\"BoardTemplate\":{\"a\":{\"1\":\"X\",\"2\":\"O\",\"3\":\"O\"},\"b\":{\"1\":\"_\",\"2\":\"O\",\"3\":\"O\"},\"c\":{\"1\":\"X\",\"2\":\"X\",\"3\":\"X\"}}},\"GameOver\":true}",
+			},
+			wantErr:       true,
+			wantTextError: "game already finished",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			data := tt.fakeData
+			service := NewGameService(&FakeStore{
+				data: data,
+			})
+
+			_, err := service.PlayMove(tt.ctx, tt.sessionID, tt.position)
+			if tt.wantErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+
+			if !tt.wantErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+
+			if err != nil {
+				if tt.wantErr && tt.wantTextError != err.Error() {
+					t.Errorf("got = %v, want %v", err.Error(), tt.wantTextError)
+				}
+				return
+			}
+			session, err := service.GetSession(tt.ctx, tt.sessionID)
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			if session.Builder.Board["a3"] != app.Player1 {
+				t.Errorf("got = %v, want %v", session.Builder.Board["a3"], app.Player1)
+			}
+			if session.Builder.BoardTemplate["a"][3] != "O" {
+				t.Errorf("got = %v, want %v", session.Builder.BoardTemplate["a"][3], "O")
+			}
+		})
+	}
+}
+
 func TestPlayReset(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -151,7 +258,7 @@ func TestPlayStart(t *testing.T) {
 				make(map[string]string),
 			}
 			service := NewGameService(fakeStore)
-			play, err := service.PlayStart(tt.ctx, "Test", "X")
+			play, err := service.PlayStart(tt.ctx, tt.Name, tt.UserSide)
 			if tt.wantErr && err == nil {
 				t.Fatal("expected error, got nil")
 			}
@@ -198,6 +305,8 @@ func TestGetSession(t *testing.T) {
 		sessionID   string
 		wantErr     bool
 		wantErrText string
+		Name        string
+		UserSide    string
 	}{
 		{
 			name:      "Сессия существует → возвращается корректная GameSession",
@@ -206,7 +315,9 @@ func TestGetSession(t *testing.T) {
 			fakeData: map[string]string{
 				"game-session:12345": "{\"Name\":\"Test\",\"UserSide\":\"X\",\"BotSide\":\"O\",\"Builder\":{\"Unused\":0,\"Rows\":[\"a\",\"b\",\"c\"],\"Cols\":[1,2,3],\"Sides\":[\"X\",\"O\"],\"Board\":{\"a1\":1,\"a2\":2,\"a3\":1,\"b1\":2,\"b2\":1,\"b3\":1,\"c1\":2,\"c2\":1,\"c3\":2},\"BoardTemplate\":{\"a\":{\"1\":\"X\",\"2\":\"O\",\"3\":\"X\"},\"b\":{\"1\":\"O\",\"2\":\"X\",\"3\":\"X\"},\"c\":{\"1\":\"O\",\"2\":\"X\",\"3\":\"O\"}}},\"GameOver\":true}",
 			},
-			wantErr: false,
+			wantErr:  false,
+			Name:     "Test",
+			UserSide: "X",
 		},
 		{
 			name:      "Сессии нет → возвращается ошибка",
@@ -217,6 +328,8 @@ func TestGetSession(t *testing.T) {
 			},
 			wantErr:     true,
 			wantErrText: "session not found",
+			Name:        "Test",
+			UserSide:    "X",
 		},
 		{
 			name:      "В Redis(fake) лежит некорректный JSON → возвращается ошибка.",
@@ -227,6 +340,8 @@ func TestGetSession(t *testing.T) {
 			},
 			wantErr:     true,
 			wantErrText: "not valid session",
+			Name:        "Test",
+			UserSide:    "X",
 		},
 	}
 

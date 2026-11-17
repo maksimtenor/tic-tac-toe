@@ -128,7 +128,7 @@ func (gs *GameService) PlayMove(ctx context.Context, sessionId string, position 
 
 	if session == "" {
 		// Ключ существует, но значение — пустая строка
-		return app.MoveResult{}, err
+		return app.MoveResult{}, errors.New("empty session")
 	}
 	var game *app.GameSession
 	err = json.Unmarshal([]byte(session), &game)
@@ -143,11 +143,11 @@ func (gs *GameService) PlayMove(ctx context.Context, sessionId string, position 
 
 	value, exists := game.Builder.Board[position]
 	if !exists {
-		err := errors.New("Invalid cell")
+		err := errors.New("invalid cell")
 		return app.MoveResult{}, err
 	}
 	if value != game.Builder.Unused {
-		err := errors.New("Cell already occupied")
+		err := errors.New("cell already occupied")
 		return app.MoveResult{}, err
 	}
 
